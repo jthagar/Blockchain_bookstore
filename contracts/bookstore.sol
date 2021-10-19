@@ -37,13 +37,16 @@ contract bookstore {
   // function for user to add a book to contract
   // users ID and the book title are given
   function addBook (string _bookTitle) public {
-
+    //add book to book list
   }
 
 
   // function for a user to purchase a book
   // book ID is necessary, but will be implemented in frontend
   function purchase (uint _bookID) public {
-
+    // require book exists
+    // require that user isn't the seller
+    // record purchase
+    // update book list
   }
 }
