@@ -1,128 +1,83 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
-
-//IPFS contract to hold any pdf's and ebooks
-// need to create javascript to interface with the IPFS daemon 
-contract IPFS {
-    // struct to hold hash location and size of the file
-    struct File {
-        string fileHash;
-        uint256 fileSize;
-    }
-
-    // creates new file to interface with IPFS from uploader
-    function uploadFile(string fileHash, uint256 fileSize) public {
-        File newFile;
-    }
-
-    // gets file struct
-    function getFile(string fileHash) public view returns (File) {
-        File file;
-    }
-
-    // gets file size variable from struct
-    function getFileSize(string fileHash) public view returns (uint256) {
-        uint256 fileSize;
-    }
-
-    // gets file hash variable from struct
-    function getFileHash(uint256 fileSize) public view returns (string) {
-        string fileHash;
-    }
-
-
-}
-
-// the base outline for the escrow contract was taken from github
-// need to edit and change it to fit the needs of the project
-contract Escrow {    
-    //state variables
-    address payable buyer;
-    address payable seller;
-    address arbiter;
-    uint public amountInWei;
-    
-    
-    //solidity events
-    event FundingReceived(uint _timestamp);
-    event SellerPaid(uint _timestamp);
-    event BuyerRefunded(uint _timestamp);
-    
-    
-    //constructor function; used to set initial state of contract
-    constructor(address payable _seller, address payable _buyer, address _arbiter, uint _amountInWei) public {
-        seller = _seller;
-        buyer = _buyer;
-        arbiter = _arbiter;
-        amountInWei = _amountInWei;
-    }
-    
-    //function for buyer to fund; payable keyword must be used
-    function fund() public payable {
-        require(msg.sender == buyer &&  //conditional checks to make sure only the buyer's address
-                msg.value == amountInWei//can send the correcr amount to the contract
-                );
-        emit FundingReceived(now); //emit FundingReceived() event
-    }
-    
-    //function for buyer to payout seller
-    function payoutToSeller() public {
-        require(msg.sender == buyer || msg.sender == arbiter); //only buyer or arbiter can execute this function
-        seller.transfer(address(this).balance); //using the solidity's built in transfer function, the funds are sent to the seller
-        emit SellerPaid(now); //emit SellerPaid() event
-    }
-    
-    //function for seller to refund the buyer
-    function refundBuyer() public {
-        require(msg.sender == seller || msg.sender == arbiter);//only buyer or arbiter can execute this function
-        buyer.transfer(address(this).balance); //using the solidity's built in transfer function, the funds are returned to the buyer
-        emit BuyerRefunded(now);//emit BuyerRefunded() event
-    }
-}
-
-contract Book {
-    //Model a Book
-    struct Book {
-        address payable seller; //seller wallet id
-        uint id; //book ID
-        string title; //book Title
-        bool physical; // 0 = no, 1 = yes
-        uint hashValue; //PDF hash if needed
-    }
-
-    //state variables
-    Book item;
-    IPFS ipfs;
-
-    //variables and functions to set an amount an item is for sale
-
-    //rewrite addBook as constructor for a single book
-    constructor(address payable _seller, uint _bookId, string _bookTitle, bool ePfd, uint hashVal) public {
-        item.seller = _seller;
-        item.id = _bookId;
-        item.title = _bookTitle;
-        item.physical = ePfd;
-        item.hashValue = hashVal;
-    }
-
-    //rewrite purchase to use Escrow and complete the contract
-    function purchase(uint _amountInWei) public payable {
-        require(msg.sender != item.seller);
-        Escrow escrow( item.seller, msg.sender, address(this).balance, _amountInWei);
-        // need to create a way to set amount the item is for sale
-        escrow.fund();
-        escrow.payoutToSeller();
-    }
-
-    //the book contract could handle the IPFS transfers and security if needed
-
-
-    // check for how to do security
-
-}
+pragma solidity >=0.8.3 <0.9.0;
+import "./Escrow.sol";
+import "./Book.sol";
 
 // contract to handle an entire transaction and to execute the escrow
-contract BookArbiter {
+contract BookArbiter is Book, Escrow, IPFS{
+    // two one-to-one maps to hold books and their prices
+    mapping(uint => Book) private books; // mapping of book id to book
+
+    uint[] private emptyIds; // array of book prices for easy iteration
+
+    uint private bookCount; // number of books in the contract
+
+    constructor () public {
+        // make stuff happen
+        bookCount = 0;
+    }
+
+    function checkEmptyIds() private pure returns (bool) {
+        return emptyIds.length > 0;
+    }
+
+    function getEmptyId() private pure returns (uint) {
+        uint temp = emptyIds[emptyIds.length - 1];
+        emptyIds.pop();
+        return temp;
+    }
+
+    function addBook(address payable _seller, string memory _bookTitle, bool ePfd, string memory _hash, uint _price) public {
+        // construct and initialize new book
+        Book memory book;
+        book.seller = _seller;
+        book.title = _bookTitle;
+        book.physical = ePfd;
+        book.hash = _hash;
+        book.price = _price;
+
+        uploadBook(_hash, 0); // get fil from given hash, will need to be integrated with js to upload to IPFS
+
+        // check existing mapping to find any empty indexes for use before pushing
+        if (checkEmptyIds()) {
+            uint temp = getEmptyId(); // get empty ID index and remove it from array
+            // Use index to set place for a new book
+            books[temp] = book;
+        } else { // if no new spots, then add fresh book to the mappings
+            books[bookCount] = book;
+            bookCount ++; //increment amount of books in the contract
+        }
+    }
+
+    // returns a book struct object
+    function getBook(uint _id) public view returns (Book memory) {
+        return books[_id];
+    }
+
+    // returns amount of books in list
+    function getAmount() external view returns (uint) {
+        return bookCount;
+    }
+
+    function removeBook(uint _id) public {
+        delete books[_id]; // zero out index in mapping
+        emptyIds.push(_id);  // add index to emptyIds array
+    }
+
+    // check age of a contract, use to push command to and from the Escrow contract of a purchase
+
+    function Transaction(uint _id) public payable {
+        require(msg.sender == books[_id].seller); // make sure that the seller is the one who is sending the funds
+
+        // create escrow contract, books[_id].price is the price of the book for the transaction
+        Escrow escrow = Escrow(books[_id].seller, msg.sender, address(this).balance, books[_id].price); // create escrow contract
+        escrow.fund(); // fund contract for item amount
+        escrow.payoutToSeller(); // pay item to seller
+        books[_id].seller = msg.sender; // change ownership of book item
+
+        //remove book from item list
+        removeBook(_id);
+    }
 
 }
 

@@ -1,6 +1,11 @@
+/// DEPRECATED ///
+// kept for notes and study
+
+
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.4.22 <0.9.0;
 
+/*
 contract bookstore {
   //Model a Book
   struct Book {
@@ -100,3 +105,4 @@ contract bookstore {
   
   //need functions for escrow, or an entire separate contract
 }
+*/
