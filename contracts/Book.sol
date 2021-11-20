@@ -36,7 +36,7 @@ contract IPFS {
 
 contract Book is IPFS{
     //Model a Book
-    struct Book{
+    struct book{
         address payable seller; //seller wallet id
         string title; //book Title
         bool physical; // 0 = no, 1 = yes
@@ -45,7 +45,7 @@ contract Book is IPFS{
     }
 
     //state variables/ contracts
-    Book item;
+    book item;
     //variables and functions to set an amount an item is for sale
 
     //rewrite addBook as constructor for a single book
@@ -55,6 +55,47 @@ contract Book is IPFS{
     //    item.physical = ePfd;
     //    item.price = _price;
     //}
+
+    //Set-Get fxns
+
+    // Set seller variable
+    function setSeller(address payable _seller) external{
+        item.seller = _seller;
+    }
+
+    function getSeller() external view returns(address payable){
+        return item.seller;
+    }
+
+    // Set title variable
+    function setTitle(string memory _title) external{
+        item.title = _title;
+    }
+
+    // Set Hash variable
+    function setHash(string memory _hash) external{
+        item.hash = _hash;
+    }
+
+
+    // Get physical variable
+    function getHash() external view returns(string memory){
+        return item.hash;
+    }
+
+    // Set physical variable
+    function setPhysical(bool _phys) external{
+        item.physical = _phys;
+    }
+
+    // Set price variables
+    function setPrice(uint _price) external{
+        item.price = _price;
+    }
+
+    function getPrice() external view returns(uint){
+        return item.price;
+    }
 
     // correspond with external script to upload the book and file
     // use with an IPFS node

@@ -14,17 +14,60 @@ contract BookArbiter{
         string hash;
         uint price; // price of the book
     }
-    
+
+    ///////////////////////
+    // Set-Get Fxns for book
+        // Set seller variable
+    function setSeller(uint index, address payable _seller) external{
+        books[index].seller = _seller;
+    }
+
+    function getSeller(uint index) external view returns(address payable){
+        return books[index].seller;
+    }
+
+    // Set title variable
+    function setTitle(uint index, string memory _title) external{
+        books[index].title = _title;
+    }
+
+    // Set Hash variable
+    function setHash(uint index, string memory _hash) external{
+        books[index].hash = _hash;
+    }
+
+
+    // Get physical variable
+    function getHash(uint index) external view returns(string memory){
+        return books[index].hash;
+    }
+
+    // Set physical variable
+    function setPhysical(uint index, bool _phys) external{
+        books[index].physical = _phys;
+    }
+
+    // Set price variables
+    function setPrice(uint index, uint _price) external{
+        books[index].price = _price;
+    }
+
+    function getPrice(uint index) external view returns(uint){
+        return books[index].price;
+    }
+
+    ///////////////////////
+
     // two one-to-one maps to hold books and their prices
     mapping(uint => Book) private books; // mapping of book id to book
 
     uint[] private emptyIds; // array of book prices for easy iteration
 
-    uint private bookCount; // number of books in the contract
+    uint private bookCount = 0; // number of books in the contract
 
     constructor () public {
         // make stuff happen
-        bookCount = 0;
+        //bookCount = 0;
     }
 
     function checkEmptyIds() private view returns (bool) {

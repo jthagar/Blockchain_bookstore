@@ -111,13 +111,25 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
     
     //constructor function; used to set initial state of contract
-    constructor(address payable _seller, address payable _buyer, address payable _arbiter, uint _amountInWei) public {
-        seller = _seller;
-        buyer = _buyer;
-        arbiter = _arbiter;
-        amountInWei = _amountInWei;
-
+    constructor() public {
         begin = block.timestamp; // set beginning of contract
         end_time = begin + limit; // set contract limit at 3 days
     }
+
+    function setSeller(address payable _seller) external {
+        seller = _seller;
+    }
+
+    function setBuyer(address payable _buyer) external {
+        buyer = _buyer;
+    }
+
+    function setArbiter(address payable _arbiter) external {
+        arbiter = _arbiter;
+    }
+
+    function setPrice(uint _amountInWei) external {
+        amountInWei = _amountInWei;
+    }
+
 }
