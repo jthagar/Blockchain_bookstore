@@ -5,6 +5,12 @@ import "./Escrow.sol";
 
 // contract to handle an entire transaction and to execute the escrow
 contract BookArbiter{
+
+    // event
+    event TransactionCreated(uint _timestamp);
+    event TransactionFunded(uint _amount);
+    event NewOwnership(uint _timestamp);
+    event ContractCreated(address newAddress);
     
     //Model a Book
     struct Book{
@@ -29,6 +35,11 @@ contract BookArbiter{
     // Set title variable
     function setTitle(uint index, string memory _title) external{
         books[index].title = _title;
+    }
+
+    // get title variable
+    function getTitle(uint index) external view returns(string memory){
+        return books[index].title;
     }
 
     // Set Hash variable
@@ -63,11 +74,11 @@ contract BookArbiter{
 
     uint[] private emptyIds; // array of book prices for easy iteration
 
-    uint private bookCount = 0; // number of books in the contract
+    uint private bookCount; // number of books in the contract
 
-    constructor () public {
+    constructor() public {
         // make stuff happen
-        //bookCount = 0;
+        bookCount = 0;
     }
 
     function checkEmptyIds() private view returns (bool) {
@@ -110,7 +121,7 @@ contract BookArbiter{
     }
 
     // returns amount of books in list
-    function getAmount() external view returns (uint) {
+    function getCount() external view returns (uint) {
         return bookCount;
     }
 
@@ -120,27 +131,47 @@ contract BookArbiter{
     }
 
     // check age of a contract, use to push command to and from the Escrow contract of a purchase
-
-    function Transaction(uint _id) public payable {
-        require(msg.sender != books[_id].seller); // make sure that the seller is the one who is sending the funds
-
-        // create escrow contract, books[_id].price is the price of the book for the transaction
-        Escrow escrow; // create escrow contract
-
-        // initialize escrow contract
-        escrow.setSeller(books[_id].seller);
-        escrow.setBuyer(payable(msg.sender));
-        escrow.setArbiter(payable(address(this)));
-        escrow.setPrice(books[_id].price);
-
+    function fundTxn(address escrowAddress) public payable {
+        Escrow escrow = Escrow(escrowAddress);
         // send funds to escrow contract and begin execution
-        // escrow.init();
-        escrow.fund();
-        escrow.payoutToSeller(); // pay item to seller
-        books[_id].seller = payable(msg.sender); // change ownership of book item
+        uint price = escrow.getPrice();
 
-        //remove book from item list
-        removeBook(_id);
+        require(msg.sender != escrow.getSeller()); // make sure that the seller is the one who is sending the funds
+        require(msg.value >= price); // fund contract here first
+        // TESTING CALL /////////
+        /////////////////////////
+        // transfer escrow funds to the contract
+        payable(escrowAddress).transfer(price);
+        escrow.validate(); // validate and payout
+        emit TransactionFunded(price);
+        escrow.setSeller(payable(msg.sender)); // change ownership of book item
+        emit NewOwnership(block.timestamp);
+
+        // remove book from item list after successful transaction, orrrr
+        // maybe switch to some offserver list of successfull txns
+        // removeBook(_id);
+    }
+
+    function createTxn(uint _id) public payable returns (bool){
+        // create escrow contract
+        Escrow txn = new Escrow();
+        emit TransactionCreated(block.timestamp);
+        emit ContractCreated(address(txn));
+
+        // set price in Gwei and check requirements
+        uint priceAdjust = books[_id].price * 1 ether / 1000; // convert to Gwei
+        require(msg.sender != books[_id].seller); // make sure that the seller is the one who is sending the funds
+        txn.setPrice(priceAdjust);
+
+        // initialize txn contract
+        txn.setSeller(books[_id].seller);
+        txn.setBuyer(payable(msg.sender));
+        txn.setArbiter(payable(address(this)));
+
+        fundTxn(address(txn)); // test funding
+
+        // return address of escrow contract
+        return true;
     }
 
 }
