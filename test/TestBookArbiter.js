@@ -1,5 +1,5 @@
 const BookArbiter = artifacts.require("BookArbiter");
-const Escrow = artifacts.require("Escrow");
+const Book = artifacts.require("Book");
 
 /*
  * uncomment accounts to access the test accounts made available by the
@@ -18,8 +18,7 @@ const Escrow = artifacts.require("Escrow");
     // try and check book creation
     it("create book in contract should assert true", () => {
       let arbiter; // holds contract instance
-      let escrow; // holds an escrow instance
-      let balance; // balance of an account for testing
+      let tome; // holds an escrow instance
 
       // return successfull deployment of contract
       return BookArbiter.deployed()
@@ -30,16 +29,26 @@ const Escrow = artifacts.require("Escrow");
         const hashA = "0F934A56E45343GH4"; // fake a hash for testing
 
         // test functions
-        return arbiter.addBook(temp, "Siddhartha", true, hashA, 20);
+        arbiter.addBook(temp, "Siddhartha", true, hashA, 0);
       })
       .then(() => { // after creating a book and using the updated instance
         return arbiter.getCount(); // return amount of books
       })
       .then(index => { // using the returned uint
         assert.isTrue(index >= 0); // check that it exists
-        return arbiter.getTitle(index - 1); // get title of new book
+        
+        return arbiter.getBook(0); // get title of new book
       })
-      .then(title => { // with the returned title string from the contract function
+      .then(book => { // with the returned title string from the contract function
+        return Book.at(book); // get address and contract from the creation
+      })
+      .then(instance => { // with the returned Book instance
+        tome = instance; // save the instance
+      })
+      .then(() => { // after getting the book instance
+        return tome.getTitle(); // get the title of the book
+      })
+      .then(title => { // using the returned string
         assert.equal( // check that it is equal to the input value
           title,
           "Siddhartha",
@@ -50,6 +59,7 @@ const Escrow = artifacts.require("Escrow");
     // next, check and test a transaction if possible
     it("conduct transaction and transfer book ownership", () => {
       let arbiter;
+      let tome;
       let bookPrice;
       let bookMark;
 
@@ -62,7 +72,14 @@ const Escrow = artifacts.require("Escrow");
       .then(index => {
         //get last book in the list and its price
         bookMark = index - 1;
-        return arbiter.getPrice(index - 1);
+        return arbiter.getBook(index - 1);
+      })
+      .then(book => {
+        return Book.at(book); //get book from previous test
+      })
+      .then(book => {
+        let tome = book; // get address and contract from the creation
+        return tome.getPrice(); //get book price
       })
       .then(price => {
         bookPrice = price;
@@ -72,29 +89,22 @@ const Escrow = artifacts.require("Escrow");
 
         // test funding of the transaction
         // convert book price to Gwei
-        const adjust = Math.ceil(web3.utils.toWei(bookPrice) * 1000000000);
+        //const adjust = Math.ceil(web3.utils.toWei(bookPrice) * 1000000000);
+        const adjust = 0;
         // create the escrow contract and initialize it
-        return arbiter.createTxn(bookMark,{ from: accounts[1], value: ((adjust | 0)) }); // OR 0 returns an INT
+        return arbiter.createTxn(bookMark, accounts[1], { from: accounts[1], value: ((adjust | 0)) }); // OR 0 returns an INT
       })
-      /*
-      .then( index => { //index in list of escrow txns
-
-        return Escrow.at(index) // check contract deployment
+      .then(() => {
+        // get the current balance of the account after the transaction
+        assert.isTrue(web3.eth.getBalance(tome.address) >= 0);
       })
-      .then( instance => { // return the contract instance
-        escrow = instance;
-        // test if the escrow creation is successful
-        assert.isTrue(web3.eth.getBalance(escrow) >= 0);
-
-      })
-      */
       .then(() => {
         // check that balance has changed in the buyer's account
-        assert.isTrue(web3.getBalance(accounts[1]) < balance);
-        arbiter.getSeller(bookMark);
+        // assert.isTrue(web3.getBalance(accounts[1]) < balance);
+        return tome.getSeller();
       })
       .then(_seller => { // check that ownership has transferred in the book
-        assert.equal(_seller, account[1], "check that ownership is transferred");
+        assert.equal(_seller, accounts[1], "check that ownership is transferred");
       })
     });
   });

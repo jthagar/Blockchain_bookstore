@@ -8,7 +8,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     address payable buyer;
     address payable seller;
     address payable arbiter;
-    uint public amountInWei;
+    uint public amountInEth;
     uint public balance;
     uint Gwei = 1000000000; // 1 ETH = 1000000000 GWEI;
     uint Wei = 1000000000; // 1 Gwei = 1000000000 WEI;
@@ -25,22 +25,35 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
             selfdestruct(payable(address(this)));
         }
     }
-    
-    
+
     //solidity events
     event FundingReceived(uint _timestamp);
     event SellerPaid(uint _timestamp);
     event BuyerRefunded(uint _timestamp);
     event ContractNull(uint _timestamp);
 
+    // allow contract to use ETH
+    fallback() external payable {
+        // do nothing
+        emit FundingReceived(block.timestamp);
+    }
+
+    // allow contract to hold ETH
+    receive() external payable {
+        // do nothing
+        emit FundingReceived(block.timestamp);
+    }
+    
+    
+
     //function that confirms/validates success of transaction
     function validate() public payable {
         //if the buyer has paid
-        if (balance > 0) {
+        if (balance >= 0) {
             //if the buyer has paid more than the amount in the contract
-            if (balance > amountInWei) {
+            if (balance > amountInEth) {
                 //refund the buyer
-                uint difference = balance - amountInWei;
+                uint difference = balance - amountInEth;
                 buyer.transfer(difference);
 
                 // re-adjust balance and pay seller
@@ -50,15 +63,15 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
                 //emit the event
                 emit SellerPaid(block.timestamp);
                 emit BuyerRefunded(block.timestamp);
-                
-                selfdestruct(payable(address(this))); // kill the contract
+
+                //selfdestruct(payable(address(this))); // kill the contract
             }
-            else if (balance == amountInWei)
+            else if (balance == amountInEth)
             { // if correct amount has been input
                 payoutToSeller(balance);
                 balance = 0;
                 emit SellerPaid(block.timestamp);
-                selfdestruct(payable(address(this))); // kill the contract
+                //selfdestruct(payable(address(this))); // kill the contract
             }
             //if the buyer has paid less than the amount in the contract
             else{ // INVALID CONTRACT
@@ -68,7 +81,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
                 //emit the event
                 emit BuyerRefunded(block.timestamp);
                 emit ContractNull(block.timestamp); // emit voided contract
-                selfdestruct(payable(address(this))); // kill the contract
+                //selfdestruct(payable(address(this))); // kill the contract
 
             }
         }
@@ -80,7 +93,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
 
     //function for buyer to fund; payable keyword must be used
     function fund() public payable {
-        require(msg.sender == arbiter && msg.value >= amountInWei);  //conditional checks to make sure only the buyer's address);
+        require(msg.sender == arbiter && msg.value == amountInEth);  //conditional checks to make sure only the buyer's address);
         balance += msg.value;
         emit FundingReceived(block.timestamp); //emit FundingReceived() event
     }
@@ -99,7 +112,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
         emit BuyerRefunded(block.timestamp);//emit BuyerRefunded() event
     }
 
-
+    /*
     //function that creates and holds a time limit for the escrow using validator
     function timeLimit() external payable {
         if(checkTime())
@@ -109,6 +122,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
         {
         }
     }
+    */
 
     // function checkTime() to check time status of the contract
     // would need to be used by an exteranl script/service as ethereum does not have internal scheduling functions
@@ -125,10 +139,12 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
     
     //constructor function; used to set initial state of contract
+    /*
     constructor() public {
         begin = block.timestamp; // set beginning of contract
         end_time = begin + limit; // set contract limit at 3 days
     }
+    */
 
     //////////////////////
     // GET-SET FXNS /////
@@ -153,11 +169,11 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
 
     function setPrice(uint _amountInWei) external {
-        amountInWei = _amountInWei;
+        amountInEth = _amountInWei;
     }
 
     function getPrice() external view returns(uint) {
-        return amountInWei;
+        return amountInEth;
     }
     ///////////////////////
 
