@@ -8,11 +8,13 @@ import "truffle/Assert.sol";
 import "truffle/DeployedAddresses.sol";
 // the smart contract we wish to test
 import "../contracts/BookArbiter.sol";
+import "../contracts/Book.sol";
 
 contract TestBookArbiter {
     
     // the smart contract we wish to test
     BookArbiter store;
+    Book tome; // get book contracts from address list
     uint index;
 
     function beforeAll() public {
@@ -28,28 +30,33 @@ contract TestBookArbiter {
     string hashD = "0B934A34B5FA56E16";
     
     /////////////////////0xC6bae7b84BE3916F298dB197fc7011a78fc6065C
+    // Ropsten address for testing: 0x2ad617ac13A61B251f340Fc5fBa9809D131ddf69
     ///////////////////////
+    // create book test phrase: 0x2ad617ac13A61B251f340Fc5fBa9809D131ddf69, "Siddhartha", true,0F934A56E45343GH4 , 0
+
     /// Test common functions of Book Arbiter contract
     
     function testAddBook() public {
-        store.addBook(temp, "little red riding hood", true, hashA, 20); // add book to test contract
+        store.addBook(temp, "little red riding hood", true, hashA, 2); // add book to test contract
         index = store.getCount() - 1; // get current index if contract is still deployed
+        tome = Book(store.getBook(index)); // get contract from address list
 
-        Assert.equal(store.getHash(index), hashA, "hash should be equal and book is created"); // assert that the added book hash equals original hash
+        Assert.equal(tome.getHash(), hashA, "hash should be equal and book is created"); // assert that the added book hash equals original hash
     }
     
     function testHashTransfer() public {
-        store.setHash(index,hashB); // change hash to new value
-        Assert.equal(store.getHash(index), hashB, "the hash should be valid after transfer to new value"); // assert that the added book hash equals original hash
+        tome.setHash(hashB); // change hash to new value
+        Assert.equal(tome.getHash(), hashB, "the hash should be valid after transfer to new value"); // assert that the added book hash equals original hash
     }
     
     // use preset address for local testnet
     // ganache address used above: 0x851763A06A4f53f2f900C274208688Ed7112ef71
-    function testtransferOwner() public {
+    function testTransferOwner() public {
         address payable reset = payable(msg.sender);
-        store.setSeller(index, reset);
+        
+        tome.setSeller(reset);
         // assert and check that ownership has changed hands
-        Assert.equal(store.getSeller(index), reset, "the new address should be the new owner of the book"); // assert that the seller has transferred
+        Assert.equal(tome.getSeller(), reset, "the new address should be the new owner of the book"); // assert that the seller has transferred
     
     }
 
@@ -60,22 +67,29 @@ contract TestBookArbiter {
         uint count = store.getCount();
 
         // test that the books were successfully added to the mapping
-        Assert.equal(store.getHash(count - 3), hashA, "second book added correctly");
-        Assert.equal(store.getHash(count - 2), hashB, "third book added correctly");
-        Assert.equal(store.getHash(count - 1), hashD, "fourth book added correctly");
+        tome = Book(store.getBook(count - 3)); // get contract for first book
+        Assert.equal(tome.getHash(), hashA, "second book added correctly");
+
+        tome = Book(store.getBook(count - 2)); // get contract for second book
+        Assert.equal(tome.getHash(), hashB, "third book added correctly");
+
+        tome = Book(store.getBook(count - 1)); // get contract for third book
+        Assert.equal(tome.getHash(), hashD, "fourth book added correctly");
     }
 
     function testRemoveBook() public { // test functional book removal
         store.removeBook(0);
-
+        //tome = Book(store.getBook(0)); // get contract for third book
         // tests that two of the values are zeroed out, due to removal
-        Assert.equal(store.getPrice(0), 0, "book removed correctly");
-        Assert.equal(store.getHash(0), "", "book removed correctly");
+        address addr = store.getBook(0);
+        Assert.isZero(addr, "book removed correctly");
     }
 
     function testBook() public { // test that books will be added to empty indexes
-        store.addBook(temp, "Atisha's Lamp", true, hashC, 10); // add book to test contract
-        Assert.equal(store.getHash(0), hashC, "book added correctly");
+        store.addBook(temp, "Atisha's Lamp", true, hashC, 0); // add book to test contract
+
+        tome = Book(store.getBook(0)); // get contract for third book
+        Assert.equal(tome.getHash(), hashC, "book added correctly");
     }
     
     /////////////////////////
@@ -85,31 +99,64 @@ contract TestBookArbiter {
     event VariablesCreated(uint _timestamp);
     event TransactionCompleted(uint _timestamp);
 
+    // TEST IN JAVASCRIPT
+    /*
 
-    //test escrow and transaction procedure
-    /* might need to be completely done in javscript to test actual eth transfer
-    function testEscrow() public {
+
+    // test escrow and transaction procedure
+    // will use the last added book from earlier so that the price is 0
+    // will need to be partly done in javscript to test actual eth transfer
+    function testEscrowCreate() public {
         // temporary variables to test escrow
         uint count = store.getCount();
+        tome = Book(store.getBook(count - 1)); // get contract for third book
 
-        address payable buyer = payable(0xC6bae7b84BE3916F298dB197fc7011a78fc6065C);
-        uint balance = uint(buyer.balance);
-        uint priceGwei = store.getPrice(count - 1) * 1000000000;
+        // ganache account
+        address buyer = 0xC6bae7b84BE3916F298dB197fc7011a78fc6065C;
         emit VariablesCreated(block.timestamp);
 
         // run escrow transaction
-        store.Transaction(count - 1, buyer);
+        store.createTxn(count - 1, buyer);
         emit TransactionCompleted(block.timestamp);
 
-        Assert.equal(store.getSeller(count -1), buyer, "successful escrow and ownership transfer");
-        Assert.isTrue((uint(buyer.balance) + priceGwei) <= (balance), "correct balance transferred");
+        // Assert.isTrue((uint(buyer.balance) + priceGwei) <= (balance), "correct balance transferred");
+    }
+
+    function testTransactionFunded() public {
+        uint count = store.getCount();
+        tome = Book(store.getBook(count - 1)); // get contract for third book
+
+        // ganache account
+        address buyer = 0xC6bae7b84BE3916F298dB197fc7011a78fc6065C;
+        address seller = tome.getSeller();
+        uint priceGwei = tome.getPrice();
+        uint balance = buyer.balance;
+
+        // run escrow transaction
+        store.fundTxn(count - 1);
+        Assert.isTrue(uint(buyer.balance) <= balance, "correct balance transferred");
+    }
+
+    function testTransactionCompleted() public {
+        uint count = store.getCount();
+        tome = Book(store.getBook(count - 1)); // get contract for third book
+
+        address payable seller = payable(tome.getSeller());
+        uint balance = seller.balance;
+
+        store.validateTxn(count - 1);
+
+        Assert.isTrue(tome.getSeller() == 0xC6bae7b84BE3916F298dB197fc7011a78fc6065C, "ownership transferred");
+        Assert.isTrue(uint(seller.balance) >= balance, "correct balance transferred");
+
 
     }
-    */
     
     
     
     ////////////////////////
     /////////////////////
+
+    */
     
 }
