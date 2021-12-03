@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.3 <0.9.0;
 
-// the base outline for the escrow contract was taken from github
-// need to edit and change it to fit the needs of the project
 contract Escrow {    // think about adding a USD => WEI converter for easier purchase legibility
     //state variables
-    address payable buyer;
-    address payable seller;
-    address payable arbiter;
+    address payable internal buyer;
+    address payable internal seller;
+    address payable internal arbiter;
     uint public amountInEth;
     uint public balance;
     uint Gwei = 1000000000; // 1 ETH = 1000000000 GWEI;
@@ -27,9 +25,9 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
 
     //solidity events
-    event FundingReceived(uint _timestamp);
-    event SellerPaid(uint _timestamp);
-    event BuyerRefunded(uint _timestamp);
+    event FundingReceived(uint _amount);
+    event SellerPaid(uint _amount);
+    event BuyerRefunded(uint _amount);
     event ContractNull(uint _timestamp);
 
     // allow contract to use ETH
@@ -43,11 +41,10 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
         // do nothing
         emit FundingReceived(block.timestamp);
     }
-    
-    
 
     //function that confirms/validates success of transaction
     function validate() public payable {
+        require(msg.sender == arbiter); //only arbiter can execute this function
         //if the buyer has paid
         if (balance >= 0) {
             //if the buyer has paid more than the amount in the contract
@@ -55,31 +52,27 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
                 //refund the buyer
                 uint difference = balance - amountInEth;
                 buyer.transfer(difference);
+                emit BuyerRefunded(block.timestamp);
 
                 // re-adjust balance and pay seller
                 balance -= difference;
                 payoutToSeller(balance);
 
-                //emit the event
-                emit SellerPaid(block.timestamp);
-                emit BuyerRefunded(block.timestamp);
-
+                balance = 0; //set balance to 0 after transaction
                 //selfdestruct(payable(address(this))); // kill the contract
             }
             else if (balance == amountInEth)
             { // if correct amount has been input
                 payoutToSeller(balance);
                 balance = 0;
-                emit SellerPaid(block.timestamp);
                 //selfdestruct(payable(address(this))); // kill the contract
             }
             //if the buyer has paid less than the amount in the contract
             else{ // INVALID CONTRACT
                 // refund to the buyer and cancel the contract
-                buyer.transfer(balance);
+                refundBuyer();
+
                 balance = 0;
-                //emit the event
-                emit BuyerRefunded(block.timestamp);
                 emit ContractNull(block.timestamp); // emit voided contract
                 //selfdestruct(payable(address(this))); // kill the contract
 
@@ -88,28 +81,29 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
 
     function convertAmount(uint256 _amount) public pure returns (uint) {
-        return _amount * (1 ether / 1000); // return ETH amount converted roughly down to dollars
+        return _amount * (1 ether / 100); // return ETH amount converted roughly down to dollars
     }
 
     //function for buyer to fund; payable keyword must be used
     function fund() public payable {
         require(msg.sender == arbiter && msg.value == amountInEth);  //conditional checks to make sure only the buyer's address);
-        balance += msg.value;
-        emit FundingReceived(block.timestamp); //emit FundingReceived() event
+        balance += msg.value; // add value to the contract
+        emit FundingReceived(balance); //emit FundingReceived() event
     }
     
     //function for buyer to payout seller
     function payoutToSeller(uint _amount) public {
-        require(msg.sender == buyer || msg.sender == arbiter); //only buyer or arbiter can execute this function
+        require(msg.sender == arbiter); //only arbiter can execute this function
         seller.transfer(_amount); //using the solidity's built in transfer function, the funds are sent to the seller
-        emit SellerPaid(block.timestamp); //emit SellerPaid() event
+        emit SellerPaid(_amount); //emit SellerPaid() event
     }
     
     //function for seller to refund the buyer
     function refundBuyer() public {
-        require(msg.sender == seller || msg.sender == arbiter);//only buyer or arbiter can execute this function
-        buyer.transfer(address(this).balance); //using the solidity's built in transfer function, the funds are returned to the buyer
-        emit BuyerRefunded(block.timestamp);//emit BuyerRefunded() event
+        require(msg.sender == arbiter);//only arbiter can execute this function
+        emit BuyerRefunded(balance);//emit BuyerRefunded() event
+        buyer.transfer(balance); //using the solidity's built in transfer function, the funds are returned to the buyer
+        balance = 0;
     }
 
     /*
@@ -140,7 +134,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     
     //constructor function; used to set initial state of contract
     /*
-    constructor() public {
+    constructor(address payable arbiter) public {
         begin = block.timestamp; // set beginning of contract
         end_time = begin + limit; // set contract limit at 3 days
     }
@@ -149,6 +143,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     //////////////////////
     // GET-SET FXNS /////
     function setSeller(address payable _seller) external {
+        require(msg.sender == arbiter || msg.sender == seller); //only arbiter can execute this function
         seller = _seller;
     }
 
@@ -157,6 +152,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
     }
 
     function setBuyer(address payable _buyer) external {
+        require(msg.sender == arbiter); //only arbiter can execute this function
         buyer = _buyer;
     }
 
@@ -164,11 +160,13 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
         return buyer;
     }
 
-    function setArbiter(address payable _arbiter) external {
+    // internal so as to avoid shenanigans
+    function setArbiter(address payable _arbiter) internal {
         arbiter = _arbiter;
     }
 
     function setPrice(uint _amountInWei) external {
+        require(msg.sender == arbiter || msg.sender == seller); //only arbiter can execute this function
         amountInEth = _amountInWei;
     }
 

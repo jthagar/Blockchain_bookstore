@@ -21,7 +21,7 @@ contract TestBookArbiter {
         // initialize for testing
         store = BookArbiter(DeployedAddresses.BookArbiter());
     }
-    address payable temp = payable(0x851763A06A4f53f2f900C274208688Ed7112ef71);
+    address payable temp = payable(address(this));
 
     // fake hash strings for testing
     string hashA = "0F934A56E45343GH4";

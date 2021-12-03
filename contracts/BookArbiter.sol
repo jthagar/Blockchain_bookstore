@@ -14,12 +14,12 @@ contract BookArbiter{
     // allow contract to hold ETH
     receive() external payable {
         // do nothing
-        emit TransactionFunded(block.timestamp);
+        emit TransactionFunded(block.timestamp, true);
     }
 
     // event
     event TransactionCreated(uint _timestamp);
-    event TransactionFunded(uint _amount);
+    event TransactionFunded(uint _amount, bool success);
     event NewOwnership(uint _timestamp);
     event ContractCreated(address newAddress);
     
@@ -60,7 +60,7 @@ contract BookArbiter{
 
     function addBook(address payable _seller, string memory _bookTitle, bool ePfd, string memory _hash, uint _price) public {
         // construct and initialize new book
-        Book newBook = new Book(_seller, _bookTitle, ePfd, _hash, _price);
+        Book newBook = new Book(payable(address(this)),_seller, _bookTitle, ePfd, _hash, _price);
 
         // check existing mapping to find any empty indexes for use before pushing
         if (checkEmptyIds()) {
@@ -99,17 +99,21 @@ contract BookArbiter{
         // set price in Gwei and check requirements
         require(msg.sender != tome.getSeller()); // make sure that the seller is the one who is sending the funds
         // initialize txn contract extras
-        tome.setBuyer(payable(_buyer));
-        tome.setArbiter(payable(address(this)));
+        tome.setBuyer(payable(_buyer)); // get buyer address and set it in the Escrow
 
          return true;
     }
 
     function fundTxn(uint _id) external payable {
-        Book tome = Book(books[_id]); // get contract from address list
+        address payable addr = books[_id]; // variable to hold book address
+        Book tome = Book(addr); // get contract from address list
+
         require(msg.value == tome.getPrice());
-        tome.fund();
-        emit TransactionFunded(tome.getPrice());
+
+        // call function to fund escrow and set value to incoming message amount
+        (bool success, bytes memory returnedData) = address(tome).call{value: msg.value}(abi.encode(tome.fund.selector));
+
+        emit TransactionFunded(tome.getPrice(), success);
     }
 
     function validateTxn(uint _id) external payable {

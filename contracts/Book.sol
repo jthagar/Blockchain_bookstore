@@ -17,18 +17,20 @@ contract Book is Escrow{ // Books are all contracts, whether or not they're comp
     //variables and functions to set an amount an item is for sale
 
     //rewrite addBook as constructor for a single book
-    constructor(address payable _seller, string memory _bookTitle, bool ePfd, string memory _hash, uint _price) public {
+    constructor(address payable _arbiter, address payable _seller, string memory _bookTitle, bool ePfd, string memory _hash, uint _price) public {
+        arbiter = _arbiter;
         seller = _seller;
         item.title = _bookTitle;
         item.physical = ePfd;
         item.hash = _hash;
-        amountInEth = _price * (1 ether / 1000);
+        amountInEth = _price * (1 ether / 100); // EXPENSIVE, but necessary for quick ganache testing
     }
 
     //Set-Get fxns
 
     // Set title variable
     function setTitle(string memory _title) external{
+        require (msg.sender == arbiter || msg.sender == seller);
         item.title = _title;
     }
 
@@ -39,6 +41,7 @@ contract Book is Escrow{ // Books are all contracts, whether or not they're comp
 
     // Set Hash variable
     function setHash(string memory _hash) external{
+        require (msg.sender == arbiter || msg.sender == seller);
         item.hash = _hash;
     }
 
@@ -49,6 +52,7 @@ contract Book is Escrow{ // Books are all contracts, whether or not they're comp
 
     // Set physical variable
     function setPhysical(bool _phys) external{
+        require (msg.sender == arbiter || msg.sender == seller);
         item.physical = _phys;
     }
 
