@@ -83,6 +83,7 @@ contract BookArbiter{
         return bookCount;
     }
 
+    // Needs to be set to be only operable by the arbiter or seller
     function removeBook(uint _id) public {
         delete books[_id]; // zero out index in mapping
         emptyIds.push(_id);  // add index to emptyIds array
@@ -101,7 +102,7 @@ contract BookArbiter{
         // initialize txn contract extras
         tome.setBuyer(payable(_buyer)); // get buyer address and set it in the Escrow
 
-         return true;
+        return true;
     }
 
     function fundTxn(uint _id) external payable {

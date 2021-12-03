@@ -44,6 +44,31 @@ nonce = []
 for i in range(0,10):
     nonce[i] = web3.eth.getTransactionCount(accounts[i])
 
+
+################################
+###### BOOK DECLARATIONS #######
+# Necessary Set for later testing declarations
+# book = {title :, seller :, pfd :, _hash :, price :}
+books = []
+books[0] = 'Atishas Lamp'
+books[1] = 'The Book of Trees'
+books[2] = 'The Book of Spiders'
+books[3] = 'The Book of Life'
+books[4] = 'Aesops Fables'
+books[5] = 'Avatar: The Last Airbender'
+books[6] = 'Guniess Book of World Records'
+books[7] = 'The Book of the Dead'
+books[8] = 'The Babadook'
+books[9] = 'The Tibetan book of the Dead'
+books[10] = 'The Dead Sea Scrolls'
+books[11] = 'The Last Olympian'
+books[12] = 'The Sea of Monsters'
+books[13] = 'The Call of Chthulu'
+books[14] = 'House of Leaves'
+books[15] = '50 Shades of Python'
+
+################################
+
 # define transaction fxns
 # modelled on the send_tx function from CSCE 4575 homework 4
 def add_book(_id, account, private_key, contract, book):
@@ -71,6 +96,10 @@ def add_book(_id, account, private_key, contract, book):
     print("time taken for transaction:", end_time - start_time)
     print("gas used for this transaction:", tx_receipt.gasUsed)
     print("the stored number is", contract.functions.retrieve().call())
+
+def remove_book():
+    # remove book from contract
+    pass
 
 def send_create_tx(_id, account, private_key, contract):
     # note: requires an active list of books to use

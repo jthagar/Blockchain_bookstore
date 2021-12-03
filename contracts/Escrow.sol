@@ -4,8 +4,8 @@ pragma solidity >=0.8.3 <0.9.0;
 contract Escrow {    // think about adding a USD => WEI converter for easier purchase legibility
     //state variables
     address payable internal buyer;
-    address payable internal seller;
-    address payable internal arbiter;
+    address payable internal seller; // owner of the item
+    address payable internal arbiter; // arbiter for the escrow
     uint public amountInEth;
     uint public balance;
     uint Gwei = 1000000000; // 1 ETH = 1000000000 GWEI;
@@ -96,6 +96,7 @@ contract Escrow {    // think about adding a USD => WEI converter for easier pur
         require(msg.sender == arbiter); //only arbiter can execute this function
         seller.transfer(_amount); //using the solidity's built in transfer function, the funds are sent to the seller
         emit SellerPaid(_amount); //emit SellerPaid() event
+        balance = 0; //set balance to 0 after transaction
     }
     
     //function for seller to refund the buyer

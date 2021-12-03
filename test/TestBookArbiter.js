@@ -15,6 +15,7 @@ const Book = artifacts.require("Book");
       .then( instance => {
         assert.isTrue(true);
     }));
+
     // try and check book creation
     it("create book in contract should assert true", () => {
       let arbiter; // holds contract instance
@@ -66,7 +67,6 @@ const Book = artifacts.require("Book");
     it("conduct transaction and create a basic book escrow contract", () => {
       let arbiter;
       let tome;
-      let bookMark;
 
       return BookArbiter.deployed() // return the contract instance
       .then( instance => { // return
